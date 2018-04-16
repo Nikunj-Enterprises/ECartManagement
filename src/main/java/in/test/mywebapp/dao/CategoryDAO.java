@@ -1,10 +1,13 @@
 package in.test.mywebapp.dao;
 
+import java.sql.Date;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -12,8 +15,13 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.WriteResult;
 
+import in.test.mywebapp.common.ApplicationConstants;
+import in.test.mywebapp.common.measure.Unit;
+import in.test.mywebapp.exception.AlreadyExistException;
 import in.test.mywebapp.model.Category;
 import in.test.mywebapp.model.CustomImage;
 import in.test.mywebapp.model.CustomProperty;
@@ -34,7 +42,7 @@ public class CategoryDAO {
 	public List<Category> getCategories(Category parentCategory){
 		List<Category> categoryList = new ArrayList<>();
 		
-		Long parentCategoryId = 
+		ObjectId parentCategoryId = 
 				findCategoryId(parentCategory.getCategoryName(), 
 						parentCategory.getParentCategoryName());
         
@@ -47,7 +55,7 @@ public class CategoryDAO {
 	}
 	
 	public List<CustomProperty> getProperties(Category category){
-		Long categoryId = 
+		ObjectId categoryId = 
 				findCategoryId(category.getCategoryName(), category.getParentCategoryName());
 		
 		Query query = new Query();
@@ -59,7 +67,7 @@ public class CategoryDAO {
 	}
 	
 	public String getProperty(Category category, String propName){
-		Long categoryId = 
+		ObjectId categoryId = 
 				findCategoryId(category.getCategoryName(), category.getParentCategoryName());
 		
 		Query query = new Query();
@@ -69,7 +77,7 @@ public class CategoryDAO {
 	}
 	
 	public List<CustomImage> getImages(Category category){
-		Long categoryId = 
+		ObjectId categoryId = 
 				findCategoryId(category.getCategoryName(), category.getParentCategoryName());
 		
 		Query query = new Query();
@@ -82,7 +90,7 @@ public class CategoryDAO {
 	}
 	
 	public byte[] getImage(Category category, int index) {
-		Long categoryId = 
+		ObjectId categoryId = 
 				findCategoryId(category.getCategoryName(), category.getParentCategoryName());
 		
 		Query query = new Query();
@@ -96,14 +104,23 @@ public class CategoryDAO {
 		Query query = new Query();
         query.addCriteria(Criteria.where("categoryName").is(parentCategoryName));
         query.fields().include("id");
-        List<Long> ids = mongoTemplate.find(query, Long.class, CATEGORY_COLLECTION_NAME);
-        
+        DBCursor cursor = mongoTemplate.getCollection( CATEGORY_COLLECTION_NAME).find(query.getQueryObject());
+        List<ObjectId> ids = new ArrayList<>();
+        while(cursor.hasNext()) {
+        	ids.add((ObjectId) cursor.next().get("id"));
+        }
         Query query2 = new Query();
         query2.addCriteria(Criteria.where("categoryName")
         		.is(categoryName)
         		.and("parentCategoryId").in(ids));
-        Category aCategory = 
-        		mongoTemplate.findOne(query2, Category.class, CATEGORY_COLLECTION_NAME);
+        DBObject  obj = 
+        		mongoTemplate.getCollection( CATEGORY_COLLECTION_NAME).findOne(query2.getQueryObject());
+        
+        if(obj == null) {
+        	return null;
+        }
+        Category aCategory = convertToCategoryObject(obj);
+        		
         aCategory.setParentCategoryName(parentCategoryName);
         
         return aCategory;
@@ -111,10 +128,15 @@ public class CategoryDAO {
 	
 	
 	public int createCategory(Category category) {
-		if(category.getCategoryName() != null && category.getParentCategoryName() !=null
-		&& !category.getCategoryName().isEmpty() && !category.getParentCategoryName().isEmpty()) {
-			category.setIsItem(false);
-			mongoTemplate.insert(category, CATEGORY_COLLECTION_NAME);
+		if(category.getCategoryName() != null && !category.getCategoryName().isEmpty()) {	
+			if(category.getParentCategoryName() ==null || category.getParentCategoryName().isEmpty()) {
+				category.setParentCategoryName(ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+			}
+			if(findCategory(category.getCategoryName(), category.getParentCategoryName()) != null) {
+				throw new AlreadyExistException("Category already created");
+			}
+			mongoTemplate.getCollection(CATEGORY_COLLECTION_NAME).insert(convertToDBObject(category));
+			return 1;
 		}
 		return 0;
 	}
@@ -151,23 +173,49 @@ public class CategoryDAO {
 		
 	}
 	
-	private Long findCategoryId(String categoryName, String parentCategoryName) {
+	private ObjectId findCategoryId(String categoryName, String parentCategoryName) {
 		Query query = new Query();
         query.addCriteria(Criteria.where("categoryName").is(parentCategoryName));
         query.fields().include("id");
-        List<Long> ids = mongoTemplate.find(query, Long.class, CATEGORY_COLLECTION_NAME);
+        DBCursor cursor = 
+        		mongoTemplate.getCollection(CATEGORY_COLLECTION_NAME).find(query.getQueryObject());
+        
+        List<ObjectId> ids = new ArrayList<>();
+        while(cursor.hasNext()) {
+        	ids.add((ObjectId) cursor.next().get("id"));
+        }
         
         Query query2 = new Query();
         query2.addCriteria(Criteria.where("categoryName").
         		is(categoryName).and("parentCategoryId").in(ids));
         query2.fields().include("id");
-        
-        return mongoTemplate.findOne(query2, Long.class,CATEGORY_COLLECTION_NAME);
+        DBObject obj = 
+        		mongoTemplate.getCollection(CATEGORY_COLLECTION_NAME).findOne(query2.getQueryObject());
+        return obj == null? null:(ObjectId) obj.get("id");
 	}
 	
 	private DBObject convertToDBObject(Category aCategory) {
         DBObject dbo = new BasicDBObject();
-        dbo.put("name", aCategory.getCategoryName());
+        dbo.put("categoryName", aCategory.getCategoryName());
+        dbo.put("isItem",false);
+        ObjectId parentId = 
+        		findCategoryId(aCategory.getCategoryName(), aCategory.getParentCategoryName());
+        if(parentId == null ) {
+        	parentId = new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID);
+        }
+        dbo.put("parentCategoryId", parentId);
+        
+        if(aCategory.getCreatedAt() == 0L) {
+        	dbo.put("startDate",Instant.now().getEpochSecond());
+        }else {
+            dbo.put("startDate", aCategory.getCreatedAt());
+        }
+        if(aCategory.getValidTill() == 0L) {
+        	dbo.put("endDate", Instant.MAX.getEpochSecond()); 
+        }else {
+            dbo.put("endDate", aCategory.getValidTill());
+        }
+        dbo.put("measureUnit", aCategory.getDefaultMeasureUnitForCategoryItems());
        
         // remove fields with no values, to avoid updating with null values
         List<String> keys = new ArrayList<>();
@@ -187,15 +235,53 @@ public class CategoryDAO {
 
         for (String key : keys) {
             switch (key) {
-                case "name":
+                case "categoryName":
                     categoryObj.setCategoryName((String) dbObject.get("categoryName"));
                     break;
+                case "parentCategoryId":
+                	String parentName = getCategoryNameById((ObjectId) dbObject.get("parentCategoryId"));
+                	categoryObj.setParentCategoryName(parentName);
+                	break;
+                case "measureUnit":
+                	String unitName = (String) dbObject.get("measureUnit");
+                	Unit unit = getUnitOf(unitName);
+                	categoryObj.setDefaultMeasureUnitForCategoryItems(unit);
+                	break;
+                case "startDate":
+                	Long createdAt = (Long) dbObject.get("startDate");
+                	categoryObj.setCreatedAt(createdAt);
+                	break;
+                case "endDate":
+                	Long validTill = (Long) dbObject.get("endDate");
+                	categoryObj.setValidTill(validTill);
+                	break;
+                case "id":
+                	break;
+                case "isItem":
+                	break;
+                case "quantity":
+                	break;
+                case "pricePerUnit":
+                	break;
                 default:
             }
         }
 
         return categoryObj;
     }
+
+	private Unit getUnitOf(String unitName) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private String getCategoryNameById(ObjectId objectId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("id").is(objectId));
+		DBObject obj = 
+				mongoTemplate.getCollection(CATEGORY_COLLECTION_NAME).findOne(query.getQueryObject());
+		return obj == null? null:(String)obj.get("categoryName");
+	}
 
 	
 }

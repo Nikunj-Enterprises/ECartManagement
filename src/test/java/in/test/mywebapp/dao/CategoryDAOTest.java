@@ -6,6 +6,7 @@ import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 
+import org.bson.types.ObjectId;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -30,9 +31,12 @@ import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
+import in.test.mywebapp.common.ApplicationConstants;
+import in.test.mywebapp.exception.AlreadyExistException;
 import in.test.mywebapp.model.Category;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -40,9 +44,9 @@ import static org.junit.Assert.assertNull;
 
 public class CategoryDAOTest{
 	
-    private CategoryDAO companyDao;
+    private CategoryDAO categoryDao;
     @InjectMocks
-    private Category company ;
+    private Category category ;
     private static MongoOperations mongoTemplate = null;
 
     private static MongodExecutable mongodExe;
@@ -78,10 +82,16 @@ public class CategoryDAOTest{
 
     @Before
     public void setUp() throws Exception {
-        companyDao= new CategoryDAO(mongoTemplate);
+        categoryDao= new CategoryDAO(mongoTemplate);
         mongoTemplate.getCollection("categories").remove(new BasicDBObject());
         mongoTemplate.getCollection("category_properties").remove(new BasicDBObject());
         mongoTemplate.getCollection("category_images").remove(new BasicDBObject());
+        
+        DBObject obj = new BasicDBObject();
+        obj.put("id", new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
+        obj.put("categoryName", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+        obj.put("isItem", false);
+        mongoTemplate.getCollection("categories").insert(obj);
         MockitoAnnotations.initMocks(this);
     }
 
@@ -94,6 +104,62 @@ public class CategoryDAOTest{
 
     @Test
     public void testCreateCategory(){
+    	category.setCategoryName("test");
+    	category.setParentCategoryName(ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	int i = categoryDao.createCategory(category);
+    	assertEquals(i,1);
+    	
+    	Category aCategory = categoryDao.findCategory("test", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertEquals(aCategory.getCategoryName(),"test");
+    	assertEquals(aCategory.getParentCategoryName(), ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertFalse(aCategory.isItem());
+    }
     
+    @Test
+    public void testCreateCategory_passingNoParentCategory(){
+    	category.setCategoryName("test");
+    	category.setParentCategoryName(null);
+    	int i = categoryDao.createCategory(category);
+    	assertEquals(i,1);
+    	
+    	Category aCategory = categoryDao.findCategory("test", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertEquals(aCategory.getCategoryName(),"test");
+    	assertEquals(aCategory.getParentCategoryName(), ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertFalse(aCategory.isItem());
+    }
+    
+    @Test(expected=AlreadyExistException.class)
+    public void testCreateCategory_Duplicate(){
+    	category.setCategoryName("test");
+    	category.setParentCategoryName(null);
+    	int i = categoryDao.createCategory(category);
+    	assertEquals(i,1);
+    	
+    	categoryDao.createCategory(category);
+    }
+    
+    @Test
+    public void testFindCategory() {
+    	
+    }
+    
+    @Test
+    public void testFindCategory_NonExisting() {
+    	
+    }
+    
+    @Test
+    public void testFindSubCategories() {
+    	
+    }
+    
+    @Test
+    public void testFindSubCategories_NoSubCategory() {
+    	
+    }
+    
+    @Test
+    public void testFindSubCategories_NonExisting() {
+    	
     }
 }
