@@ -4,13 +4,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.types.ObjectId;
+
 import in.test.mywebapp.common.measure.Unit;
 
 import static in.test.mywebapp.common.ApplicationConstants.*;
 
 public class Category {
+	private ObjectId id;
 	private String categoryName;
-	private String parentCategoryName = TOP_MOST_CATEGORY_NAME;
+	private ObjectId parentCategoryId;
 	private boolean isItem = false;
 	private List<Category> subCategories;
 	private Unit defaultMeasureUnitForCategoryItems;
@@ -26,11 +29,11 @@ public class Category {
 	public String getCategoryName(){
 		return this.categoryName;
 	}
-	public void setParentCategoryName(String name){
-		this.parentCategoryName = name;
+	public void setParentCategoryId(ObjectId parentId){
+		this.parentCategoryId = parentId;
 	}
-	public String getParentCategoryName(){
-		return this.parentCategoryName;
+	public ObjectId getParentCategoryId(){
+		return this.parentCategoryId;
 	}
 	public boolean isItem(){
 		return this.isItem;
@@ -78,5 +81,12 @@ public class Category {
 	}
 	public void setValidTill(long validTill) {
 		this.validTill = validTill;
+	}
+	
+	public ObjectId getId() {
+		return id;
+	}
+	public void setId(ObjectId id) {
+		this.id = id;
 	}
 }

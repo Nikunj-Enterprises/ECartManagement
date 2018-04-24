@@ -31,14 +31,14 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 	@Override
 	public Item findItemByNameUnderCategory(Category category, String name) {
 		validateCategoryExistance(category);
-		return itemDAO.findCategoryItem(category.getCategoryName(), name);
+		return itemDAO.findCategoryItem(category.getId(), name);
 	}
 
 	@Override
 	public void addItemUnderCategory(Category category, Item item) {
 		validateCategoryExistance(category);
 		if(item.getCategoryName() != null && !item.getCategoryName().isEmpty()) {
-			item.setParentCategoryName(category.getCategoryName());
+			item.setParentCategoryId(category.getId());
 			Item dbItem = findItemByNameUnderCategory(category, item.getCategoryName());
 			if(dbItem == null) {
 				//Item is being newly created
@@ -53,7 +53,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 								new Quantity<>(0.0, item.getMeasureUnit()));
 					}else{
 						category = 
-								categoryDAO.findCategory(category.getCategoryName(), category.getParentCategoryName());
+								categoryDAO.findCategoryById(category.getId());
 						itemDAO.updateItemQuantity(item, 
 								new Quantity<>(0.0, category.getDefaultMeasureUnitForCategoryItems()));
 					}
@@ -77,7 +77,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 	public void removeItemUnderCategory(Category category, Item item) {
 		validateCategoryExistance(category);
 		if(item.getCategoryName() != null && !item.getCategoryName().isEmpty()) {
-			item.setParentCategoryName(category.getCategoryName());
+			item.setParentCategoryId(category.getId());
 			Item dbItem = findItemByNameUnderCategory(category, item.getCategoryName());
 			if(dbItem != null) {
 				Quantity<?> itemQuantity = item.getItemQuantity();
@@ -92,7 +92,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public Quantity<?> getTotalItemQuantity(Item item) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			return dbItem.getItemQuantity();
 		}
@@ -102,7 +102,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void setTotalItemQuantity(Item item, Quantity<?> quantity) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			 // if quantity is valid
 			 itemDAO.updateItemQuantity(item, quantity);
@@ -112,7 +112,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void setItemPricePerUnit(Item item, double price) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			itemDAO.updateItemPerUnitPrice(item, price);
 		}
@@ -121,7 +121,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public double getItemPrice(Item item) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			Quantity<?> quantity = getTotalItemQuantity(item);
 			double price = itemDAO.getItemPerUnitPrice(item);
@@ -139,7 +139,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void addOrUpdateItemImage(Item item, int index, byte[] image) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			if(itemDAO.getImage(dbItem, index) != null) {
 				itemDAO.updateImage(dbItem, index, image);
@@ -153,7 +153,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public byte[] getItemImage(Item item, int index) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			return itemDAO.getImage(dbItem, index);
 		}
@@ -162,7 +162,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void deleteItemImage(Item item, int index) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			itemDAO.removeImage(dbItem, index);
 		}
@@ -172,7 +172,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void addOrUpdateItemProperty(Item item, String propName, String propValue) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			if(itemDAO.getProperty(dbItem, propName) != null) {
 				itemDAO.updateProperty(dbItem, propName, propValue);
@@ -187,7 +187,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public String getItemProperty(Item item, String propName) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			itemDAO.getProperty(dbItem, propName);
 		}
@@ -196,7 +196,7 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 
 	@Override
 	public void deleteItemProperty(Item item, String propName) {
-		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryName(), item.getCategoryName());
+		Item dbItem = itemDAO.findCategoryItem(item.getParentCategoryId(), item.getCategoryName());
 		if(dbItem != null) {
 			itemDAO.removeProperty(dbItem, propName);
 		}else {
@@ -206,9 +206,9 @@ public class ItemStoreServiceImpl implements ItemStoreService {
 	}
 	
 	private void validateCategoryExistance(Category category) {
-		if(category.getCategoryName() == null || category.getParentCategoryName() == null
-				|| category.getCategoryName().isEmpty() || category.getParentCategoryName().isEmpty()
-				|| categoryDAO.findCategory(category.getCategoryName(), category.getParentCategoryName()) == null) {
+		if(category.getCategoryName() == null || category.getCategoryName().isEmpty() 
+				|| category.getParentCategoryId() == null ||category.getId() == null
+				|| categoryDAO.findCategoryById(category.getId()) == null) {
 			throw new NotFoundException("Non-existing category");
 		}
 	}

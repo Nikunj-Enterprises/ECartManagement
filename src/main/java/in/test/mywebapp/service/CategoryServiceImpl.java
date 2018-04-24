@@ -4,9 +4,11 @@ import static in.test.mywebapp.common.ApplicationConstants.TOP_MOST_CATEGORY_NAM
 
 import java.util.List;
 
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import in.test.mywebapp.common.ApplicationConstants;
 import in.test.mywebapp.dao.CategoryDAO;
 import in.test.mywebapp.exception.AlreadyExistException;
 import in.test.mywebapp.exception.InvalidInputException;
@@ -38,7 +40,7 @@ public class CategoryServiceImpl implements CategoryService{
 			throw new InvalidInputException("category name can not be null");
 		}
 		if(categoryDAO.findCategory(category.getCategoryName(), TOP_MOST_CATEGORY_NAME) == null) {
-			category.setParentCategoryName(TOP_MOST_CATEGORY_NAME);
+			category.setParentCategoryId(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
 			categoryDAO.createCategory(category);
 		}else {
 			throw new AlreadyExistException("Category "+category.getCategoryName()+" already exist");
@@ -52,7 +54,7 @@ public class CategoryServiceImpl implements CategoryService{
 			throw new InvalidInputException("category name can not be null");
 		}
 		if(categoryDAO.findCategory(subCategory.getCategoryName(), category.getCategoryName())== null) {
-			subCategory.setParentCategoryName(category.getCategoryName());
+			subCategory.setParentCategoryId(category.getId());
 			categoryDAO.createCategory(subCategory);
 		}else {
 			throw new AlreadyExistException("Category "+subCategory.getCategoryName()+" already exist");
@@ -61,7 +63,7 @@ public class CategoryServiceImpl implements CategoryService{
 
 	@Override
 	public void removeRootCategory(Category category) {
-		category.setParentCategoryName(TOP_MOST_CATEGORY_NAME);
+		category.setParentCategoryId(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
 		validateCategoryExistance(category);
 		categoryDAO.removeCategory(category);		
 	}
@@ -69,7 +71,7 @@ public class CategoryServiceImpl implements CategoryService{
 	@Override
 	public void removeSubCategory(Category category, Category subCategory) {
 		validateCategoryExistance(category);
-		subCategory.setParentCategoryName(category.getCategoryName());
+		subCategory.setParentCategoryId(category.getId());
 		validateCategoryExistance(subCategory);
 		categoryDAO.removeCategory(subCategory);
 	}
@@ -109,9 +111,9 @@ public class CategoryServiceImpl implements CategoryService{
 			throw new AlreadyExistException("Category "+newCategory.getCategoryName()+" already exist");
 		}catch(NotFoundException e) {
 			// newCategory names safe to use
-			if(newCategory.getCategoryName() != null && newCategory.getParentCategoryName() != null 
-				&& !newCategory.getCategoryName().isEmpty() && !newCategory.getParentCategoryName().isEmpty())
-			categoryDAO.update(oldCategory, newCategory);
+			if(newCategory.getCategoryName() != null && newCategory.getParentCategoryId() != null 
+				&& !newCategory.getCategoryName().isEmpty() )
+			categoryDAO.update( newCategory);
 		}
 	}
 
@@ -144,9 +146,9 @@ public class CategoryServiceImpl implements CategoryService{
 	}
 	
 	private void validateCategoryExistance(Category category) {
-		if(category.getCategoryName() == null || category.getParentCategoryName() == null
-				|| category.getCategoryName().isEmpty() || category.getParentCategoryName().isEmpty()
-				|| categoryDAO.findCategory(category.getCategoryName(), category.getParentCategoryName()) == null) {
+		if(category.getCategoryName() == null || category.getCategoryName().isEmpty() 
+				|| category.getParentCategoryId() == null ||category.getId() == null
+				|| categoryDAO.findCategoryById(category.getId()) == null) {
 			throw new NotFoundException("Non-existing category");
 		}
 	}

@@ -3,6 +3,7 @@ package in.test.mywebapp.dao;
 import java.util.List;
 import java.util.Map;
 
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.stereotype.Repository;
@@ -44,7 +45,7 @@ public class ItemDAO {
 		return null;
 	}
 
-	public Item findCategoryItem(String categoryName, String itemName) {
+	public Item findCategoryItem(ObjectId parentCategoryId, String itemName) {
 		return null;
 	}
 	

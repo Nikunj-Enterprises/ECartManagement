@@ -33,6 +33,7 @@ import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.runtime.Network;
 import in.test.mywebapp.common.ApplicationConstants;
 import in.test.mywebapp.exception.AlreadyExistException;
+import in.test.mywebapp.exception.NotFoundException;
 import in.test.mywebapp.model.Category;
 
 import static org.junit.Assert.assertEquals;
@@ -88,7 +89,7 @@ public class CategoryDAOTest{
         mongoTemplate.getCollection("category_images").remove(new BasicDBObject());
         
         DBObject obj = new BasicDBObject();
-        obj.put("id", new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
+        obj.put(ApplicationConstants.CATEGORY_COLLECTION_ID_COLUMN, new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
         obj.put("categoryName", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
         obj.put("isItem", false);
         mongoTemplate.getCollection("categories").insert(obj);
@@ -105,33 +106,40 @@ public class CategoryDAOTest{
     @Test
     public void testCreateCategory(){
     	category.setCategoryName("test");
-    	category.setParentCategoryName(ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	category.setParentCategoryId(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
     	int i = categoryDao.createCategory(category);
     	assertEquals(i,1);
     	
     	Category aCategory = categoryDao.findCategory("test", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
     	assertEquals(aCategory.getCategoryName(),"test");
-    	assertEquals(aCategory.getParentCategoryName(), ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertEquals(aCategory.getParentCategoryId().toHexString(), ApplicationConstants.TOP_MOST_CATEGORY_ID);
     	assertFalse(aCategory.isItem());
     }
     
     @Test
     public void testCreateCategory_passingNoParentCategory(){
     	category.setCategoryName("test");
-    	category.setParentCategoryName(null);
+    	category.setParentCategoryId(null);
     	int i = categoryDao.createCategory(category);
     	assertEquals(i,1);
     	
     	Category aCategory = categoryDao.findCategory("test", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
     	assertEquals(aCategory.getCategoryName(),"test");
-    	assertEquals(aCategory.getParentCategoryName(), ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	assertEquals(aCategory.getParentCategoryId().toHexString(), ApplicationConstants.TOP_MOST_CATEGORY_ID);
     	assertFalse(aCategory.isItem());
+    }
+    
+    @Test(expected=NotFoundException.class)
+    public void testCreateCategory_passingNonExistingParentCategory(){
+    	category.setCategoryName("test");
+    	category.setParentCategoryId(new ObjectId("5ad4d3f442908b1b1e044557"));
+    	categoryDao.createCategory(category);
     }
     
     @Test(expected=AlreadyExistException.class)
     public void testCreateCategory_Duplicate(){
     	category.setCategoryName("test");
-    	category.setParentCategoryName(null);
+    	category.setParentCategoryId(null);
     	int i = categoryDao.createCategory(category);
     	assertEquals(i,1);
     	
@@ -140,7 +148,19 @@ public class CategoryDAOTest{
     
     @Test
     public void testFindCategory() {
+    	category.setCategoryName("test");
+    	category.setParentCategoryId(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
+    	int i = categoryDao.createCategory(category);
+    	assertEquals(i,1);
     	
+    	Category parentCategory = 
+    			categoryDao.findCategoryById(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
+    	
+    	assertEquals(ApplicationConstants.TOP_MOST_CATEGORY_NAME, parentCategory.getCategoryName());
+    	
+    	Category categoryTest = categoryDao.findCategory("test", parentCategory.getCategoryName());
+    	assertNotNull(categoryTest.getId());
+    	assertNotNull(categoryDao.findCategoryById(categoryTest.getId()));
     }
     
     @Test
@@ -150,7 +170,20 @@ public class CategoryDAOTest{
     
     @Test
     public void testFindSubCategories() {
+    	category.setCategoryName("test");
+    	category.setParentCategoryId(new ObjectId(ApplicationConstants.TOP_MOST_CATEGORY_ID));
+    	int i = categoryDao.createCategory(category);
+    	assertEquals(i,1);
+    	Category categoryTest = categoryDao.findCategory("test", ApplicationConstants.TOP_MOST_CATEGORY_NAME);
+    	Category childCategory = new Category();
+    	childCategory.setCategoryName("child");
+    	childCategory.setParentCategoryId(categoryTest.getId());
     	
+    	i = categoryDao.createCategory(childCategory);
+    	assertEquals(i,1);
+    	
+    	List<Category> list = categoryDao.getCategories(category);
+    	assertEquals(1, list.size());
     }
     
     @Test
